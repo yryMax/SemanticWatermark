@@ -1,25 +1,35 @@
-import argparse
-import copy
+import os
+import subprocess
+def get_free_gpu():
+    output = subprocess.check_output("nvidia-smi --query-gpu=memory.free --format=csv,nounits,noheader", shell=True)
+    memory_free = [int(x) for x in output.decode().strip().split('\n')]
+    return memory_free.index(max(memory_free))
 
-import pandas as pd
-from tqdm import tqdm
+free_gpu = get_free_gpu()
+os.environ["CUDA_VISIBLE_DEVICES"] = str(free_gpu)
+
 import torch
-from transformers import CLIPModel, CLIPTokenizer
-from diffusion_utils import InversableStableDiffusionPipeline
+
+import argparse
+
+from tqdm import tqdm
+import torch.nn.functional as F
 from diffusers import DPMSolverMultistepScheduler, DDIMScheduler, FluxPipeline, PixArtAlphaPipeline, \
     StableDiffusion3Pipeline, StableDiffusionPipeline, DDIMInverseScheduler
 from diffusion_utils import ModifiedStableDiffusion3Pipeline, ModifiedPixArtAlphaPipeline, InversableStableDiffusionPipeline, RFInversionFluxPipeline
 from watermark import Gaussian_Shading, Gaussian_Shading_chacha
-from torch.cuda.amp import autocast
+import clip
 from utils import get_dataset, transform_img, measure_similarity, image_distortion, save_metrics
-import os
+
 
 
 def main(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
-    # Define different schedulers for each synthesizer
 
+    clip_model, clip_preprocess = clip.load("ViT-B/32", device=device)
+
+    # Define different schedulers for each synthesizer
     synthesizers = {
         "sd3": ModifiedStableDiffusion3Pipeline.from_pretrained("stabilityai/stable-diffusion-3-medium-diffusers",
                                                   torch_dtype=torch.float16),
@@ -39,7 +49,8 @@ def main(args):
     proxy_model = proxy_model.to(device)
     proxy_model.scheduler = proxy_model_scheduler
 
-    prompts = ["A cat holding a sign that says hello world"]
+    prompts = ["A cat holding a sign that says hello world",
+                "An astronaut floating in space"]
 
     os.makedirs(args.output_path, exist_ok=True)
 
@@ -47,7 +58,7 @@ def main(args):
     tester_prompt = ''
 
     # Initialize dictionaries to store results for each synthesizer
-    results = {synth.__class__.__name__: {'accuracy': [], 'clip_scores': []} for synth in synthesizers}
+    results = {synth: {'accuracy': [], 'clip_scores': []} for synth in synthesizers}
 
     for i in tqdm(range(0, len(prompts))):
         seed = i + args.gen_seed
@@ -154,14 +165,22 @@ def main(args):
 
             # Accuracy metric
             acc_metric = watermark.eval_watermark(reversed_latents_w)
-            print(f"{synthesizer_pipeline.__class__.__name__} Accuracy: {acc_metric}")
+            # CLIP
+            scores = measure_similarity([image_w], "a picture of a dog in a park", clip_model, clip_preprocess, clip.tokenize, device)
+
+            results[synthesizer_name]['accuracy'].append(acc_metric)
+            results[synthesizer_name]['clip_scores'].append(scores[0])
+
+            print(f"{synthesizer_name}: Accuracy: {acc_metric}, Clip Score: {scores}")
 
     # Collect TPR metric
     tpr_detection, tpr_traceability = watermark.get_tpr()
 
     # Save metrics for each synthesizer
     for synth_name, result in results.items():
-        print(f"Saving results for {synth_name}...")
+        # print(f"Saving results for {synth_name}...")
+        print(f"{synthesizer_name}: Detection TPR: {tpr_detection}, Traceability TPR: {tpr_traceability}",
+              f"Accuracy: {result['accuracy']}, Clip Score: {result['clip_scores']}")
         save_metrics(args, tpr_detection, tpr_traceability, result['accuracy'], result['clip_scores'])
 
 

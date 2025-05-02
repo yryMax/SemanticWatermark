@@ -6,20 +6,10 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import torch
-from transformers import (
-    CLIPTextModelWithProjection,
-    CLIPTokenizer,
-    SiglipImageProcessor,
-    SiglipVisionModel,
-    T5EncoderModel,
-    T5TokenizerFast,
-)
+
 
 from diffusers.image_processor import PipelineImageInput, VaeImageProcessor
-from diffusers.loaders import FromSingleFileMixin, SD3IPAdapterMixin, SD3LoraLoaderMixin
-from diffusers.models.autoencoders import AutoencoderKL
-from diffusers.models.transformers import SD3Transformer2DModel
-from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
+
 from diffusers.utils import (
     USE_PEFT_BACKEND,
     is_torch_xla_available,
@@ -28,8 +18,6 @@ from diffusers.utils import (
     scale_lora_layers,
     unscale_lora_layers,
 )
-from diffusers.utils.torch_utils import randn_tensor
-from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 from diffusers.pipelines.stable_diffusion_3.pipeline_output import StableDiffusion3PipelineOutput
 
 
