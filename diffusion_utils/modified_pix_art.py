@@ -882,3 +882,16 @@ class ModifiedPixArtAlphaPipeline(PixArtAlphaPipeline):
             return (image,)
 
         return ImagePipelineOutput(images=image)
+
+
+    @torch.inference_mode()
+    def get_text_embedding(self, prompt):
+        text_input_ids = self.tokenizer(
+            prompt,
+            padding="max_length",
+            truncation=True,
+            max_length=self.tokenizer.model_max_length,
+            return_tensors="pt",
+        ).input_ids
+        text_embeddings = self.text_encoder(text_input_ids.to(self.device))[0]
+        return text_embeddings
