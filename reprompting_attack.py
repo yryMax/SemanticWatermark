@@ -31,8 +31,8 @@ def main(args):
 
     # Define different schedulers for each synthesizer
     synthesizers = {
-        "sd3": ModifiedStableDiffusion3Pipeline.from_pretrained("stabilityai/stable-diffusion-3-medium-diffusers",
-                                                  torch_dtype=torch.float16),
+        #"sd3": ModifiedStableDiffusion3Pipeline.from_pretrained("stabilityai/stable-diffusion-3-medium-diffusers",
+        #                                          torch_dtype=torch.float16),
         #"sd2": InversableStableDiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-2-base", torch_dtype=torch.float16),
 
         "flux": RFInversionFluxPipeline.from_pretrained("black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16),
@@ -179,7 +179,7 @@ def main(args):
     # Save metrics for each synthesizer
     for synth_name, result in results.items():
         # print(f"Saving results for {synth_name}...")
-        print(f"{synthesizer_name}: Detection TPR: {tpr_detection}, Traceability TPR: {tpr_traceability}",
+        print(f"{synth_name}: Detection TPR: {tpr_detection}, Traceability TPR: {tpr_traceability}",
               f"Accuracy: {result['accuracy']}, Clip Score: {result['clip_scores']}")
         save_metrics(args, tpr_detection, tpr_traceability, result['accuracy'], result['clip_scores'])
 
